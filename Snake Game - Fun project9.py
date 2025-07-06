@@ -24,9 +24,9 @@ YELLOW = (255, 255, 0)
 
 ## Set Clock and font
 clock = pygame.time.Clock()
-font_style = pygame.font.SysFont("bahnschrift", 25)
-score_font = pygame.font.SysFont("comicsansms", 35)
-mode_font = pygame.font.SysFont("comicsansms", 30)
+font_style = pygame.font.SysFont("arial", 20)
+score_font = pygame.font.SysFont("arial", 20)
+mode_font = pygame.font.SysFont("arial", 20)
 
 ## Set Snake parameters
 snake_block = 10
