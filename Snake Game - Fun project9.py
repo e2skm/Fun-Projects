@@ -1,7 +1,7 @@
 # Snake Game - Enhanced with Game Modes, High Score, and Sound Effects
 
 ## Import all the necessary libraries
-import pygame, time, random, os
+import pygame, time, random, os, math
 
 ## Initialize pygame and mixer
 pygame.init()
@@ -56,24 +56,26 @@ def save_high_score(score):
 # Initialize high score
 load_high_score()
 
-## Sound effects
-def load_sound(filename):
-    try:
-        return pygame.mixer.Sound(filename)
-    except:
-        print(f"Warning: Could not load sound {filename}")
-        return None
+## Sound effects - improved with better fallback sounds
+def generate_beep_sound(frequency=440, duration=0.1):
+    sample_rate = 44100
+    n_samples = int(sample_rate * duration)
+    buf = bytearray(n_samples)
+    
+    for i in range(n_samples):
+        t = float(i) / sample_rate
+        buf[i] = int(127.0 * (0.5 + 0.5 * math.sin(2.0 * math.pi * frequency * t)))
+    
+    return pygame.mixer.Sound(buffer=bytes(buf))
 
-eat_sound = load_sound("eat.wav")  # Placeholder - create these sound files
-die_sound = load_sound("die.wav")  # or use pygame.mixer.Sound(buffer) for simple tones
-high_score_sound = load_sound("high_score.wav")
-
-# Simple sound generation if files are missing
-if eat_sound is None:
+try:
+    eat_sound = generate_beep_sound(880, 0.1)  # High pitch for eating
+    die_sound = generate_beep_sound(220, 0.3)  # Low pitch for dying
+    high_score_sound = generate_beep_sound(660, 0.2)  # Medium pitch for high score
+except:
+    # Very simple fallback if sound generation fails
     eat_sound = pygame.mixer.Sound(buffer=bytes([128] * 8000))
-if die_sound is None:
     die_sound = pygame.mixer.Sound(buffer=bytes([128] * 16000))
-if high_score_sound is None:
     high_score_sound = pygame.mixer.Sound(buffer=bytes([128] * 12000))
 
 ## Display score
@@ -91,6 +93,12 @@ def display_game_mode():
     mode_text = f"Mode: {current_mode.capitalize()}"
     value = mode_font.render(mode_text, True, YELLOW)
     screen.blit(value, [WIDTH // 2 - value.get_width() // 2, 10])
+
+def show_pause_screen():
+    screen.fill(BLACK)
+    pause_text = font_style.render("PAUSED - Press P to resume", True, WHITE)
+    screen.blit(pause_text, [WIDTH // 2 - pause_text.get_width() // 2, HEIGHT // 2])
+    pygame.display.update()
 
 ## Main menu for game mode selection
 def game_mode_menu():
@@ -148,6 +156,7 @@ def gameLoop():
     game_over = False
     game_close = False
     broke_record = False
+    paused = False
 
     ### Snake initial position
     x1, y1 = WIDTH // 2, HEIGHT // 2
@@ -157,9 +166,14 @@ def gameLoop():
     snake_list = []
     length_of_snake = 1
 
-    ### Set random food position
-    foodx = round(random.randrange(0, WIDTH - snake_block) / 10.0) * 10.0
-    foody = round(random.randrange(0, HEIGHT - snake_block) / 10.0) * 10.0
+    ### Set random food position - now happens at start of each game
+    def spawn_food():
+        return (
+            round(random.randrange(0, WIDTH - snake_block) / 10.0) * 10.0,
+            round(random.randrange(0, HEIGHT - snake_block) / 10.0) * 10.0
+        )
+    
+    foodx, foody = spawn_food()
 
     while not game_over:
         while game_close:
@@ -177,12 +191,13 @@ def gameLoop():
                         game_close = False
                     if event.key == pygame.K_c:
                         game_close = False
-                        # Reset game state
+                        # Reset game state with new food position
                         x1, y1 = WIDTH // 2, HEIGHT // 2
                         x1_change, y1_change = 0, 0
                         snake_list = []
                         length_of_snake = 1
                         broke_record = False
+                        foodx, foody = spawn_food()
                     if event.key == pygame.K_m:
                         game_close = False
                         game_over = True  # Exit to main menu
@@ -191,28 +206,35 @@ def gameLoop():
             if event.type == pygame.QUIT:
                 game_over = True
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p:  # Pause with P key
+                    paused = not paused
                 # Arrow keys and WASD controls with reversal prevention
-                if (event.key == pygame.K_LEFT or event.key == pygame.K_a) and x1_change == 0:
+                elif not paused and (event.key == pygame.K_LEFT or event.key == pygame.K_a) and x1_change == 0:
                     x1_change = -snake_block
                     y1_change = 0
-                elif (event.key == pygame.K_RIGHT or event.key == pygame.K_d) and x1_change == 0:
+                elif not paused and (event.key == pygame.K_RIGHT or event.key == pygame.K_d) and x1_change == 0:
                     x1_change = snake_block
                     y1_change = 0
-                elif (event.key == pygame.K_UP or event.key == pygame.K_w) and y1_change == 0:
+                elif not paused and (event.key == pygame.K_UP or event.key == pygame.K_w) and y1_change == 0:
                     y1_change = -snake_block
                     x1_change = 0
-                elif (event.key == pygame.K_DOWN or event.key == pygame.K_s) and y1_change == 0:
+                elif not paused and (event.key == pygame.K_DOWN or event.key == pygame.K_s) and y1_change == 0:
                     y1_change = snake_block
                     x1_change = 0
                 # Change game mode during play
                 elif event.key == pygame.K_m:
                     speed = game_mode_menu()
-                    # Reset game state
+                    # Reset game state with new food position
                     x1, y1 = WIDTH // 2, HEIGHT // 2
                     x1_change, y1_change = 0, 0
                     snake_list = []
                     length_of_snake = 1
                     broke_record = False
+                    foodx, foody = spawn_food()
+
+        if paused:
+            show_pause_screen()
+            continue
 
         # Check if snake hits the boundary
         if x1 >= WIDTH or x1 < 0 or y1 >= HEIGHT or y1 < 0:
@@ -306,8 +328,7 @@ def gameLoop():
         # Check if snake eats food
         if abs(x1 - foodx) < snake_block and abs(y1 - foody) < snake_block:
             eat_sound.play()
-            foodx = round(random.randrange(0, WIDTH - snake_block) / 10.0) * 10.0
-            foody = round(random.randrange(0, HEIGHT - snake_block) / 10.0) * 10.0
+            foodx, foody = spawn_food()  # Use the new function to spawn food
             length_of_snake += 1
             
             # Check for new high score
