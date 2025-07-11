@@ -1,4 +1,4 @@
-# Pong game - Final Fixed Version
+# Pong game - Improved Version with difficulty-based ball speed and expanded options
 
 # Import all the necessary libraries
 import pygame, sys, time, numpy
@@ -43,16 +43,19 @@ game_state = "main_menu"
 game_mode = "medium"
 players = 1
 game_condition = "score"
-end_score = 25
-game_duration = 120
+end_score = 10  # Changed default to new middle option
+game_duration = 300  # Changed default to 5 minutes (300 seconds)
 game_start_time = 0
 paused_time = 0
 is_paused = False
 
 # Game objects
 ball = pygame.Rect(WIDTH//2 - 15, HEIGHT//2 - 15, 30, 30)
-ball_speed_x = 4 * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
-ball_speed_y = 4 * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
+# Base speeds for medium difficulty
+base_ball_speed_x = 4
+base_ball_speed_y = 4
+ball_speed_x = base_ball_speed_x * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
+ball_speed_y = base_ball_speed_y * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
 
 player = pygame.Rect(WIDTH - 20, HEIGHT//2 - 70, 10, 140)
 opponent = pygame.Rect(10, HEIGHT//2 - 70, 10, 140)
@@ -68,10 +71,22 @@ menu_font = pygame.font.Font(None, 36)
 small_font = pygame.font.Font(None, 24)
 
 def ball_reset():
-    global ball_speed_x, ball_speed_y
+    global ball_speed_x, ball_speed_y, base_ball_speed_x, base_ball_speed_y
+    
+    # Adjust base speed based on difficulty
+    if game_mode == "easy":
+        base_ball_speed_x = 3
+        base_ball_speed_y = 3
+    elif game_mode == "medium":
+        base_ball_speed_x = 4
+        base_ball_speed_y = 4
+    elif game_mode == "hard":
+        base_ball_speed_x = 6
+        base_ball_speed_y = 6
+    
     ball.center = (WIDTH//2, HEIGHT//2)
-    ball_speed_x = 4 * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
-    ball_speed_y = 4 * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
+    ball_speed_x = base_ball_speed_x * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
+    ball_speed_y = base_ball_speed_y * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
 
 def play_sound(sound):
     sound.play()
@@ -223,21 +238,29 @@ while True:
                 if game_state == "condition_menu":
                     if game_condition == "score" and end_score > 5:
                         end_score -= 5
-                    elif game_condition == "time" and game_duration > 30:
-                        game_duration -= 15
+                    elif game_condition == "time" and game_duration > 120:
+                        game_duration -= 180  # Decrease by 3 minutes (180 seconds)
             
             if event.key == pygame.K_RIGHT:
                 if game_state == "condition_menu":
                     if game_condition == "score":
                         end_score += 5
                     elif game_condition == "time":
-                        game_duration += 15
+                        game_duration += 180  # Increase by 3 minutes (180 seconds)
             
             if game_state == "playing" and not is_paused:
+                # Player 1 controls (both in 1P and 2P modes)
                 if event.key == pygame.K_UP:
                     player_speed = -7
                 if event.key == pygame.K_DOWN:
                     player_speed = 7
+                # Alternative controls for Player 1 in 1P mode
+                if players == 1:
+                    if event.key == pygame.K_w:
+                        player_speed = -7
+                    if event.key == pygame.K_s:
+                        player_speed = 7
+                # Player 2 controls (only in 2P mode)
                 if players == 2:
                     if event.key == pygame.K_w:
                         player2_speed = -7
@@ -248,6 +271,10 @@ while True:
             if game_state == "playing":
                 if event.key == pygame.K_UP or event.key == pygame.K_DOWN:
                     player_speed = 0
+                # Handle alternative controls release in 1P mode
+                if players == 1:
+                    if event.key == pygame.K_w or event.key == pygame.K_s:
+                        player_speed = 0
                 if players == 2:
                     if event.key == pygame.K_w or event.key == pygame.K_s:
                         player2_speed = 0
