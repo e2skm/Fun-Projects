@@ -1,7 +1,7 @@
 # Pong game - Improved Version with difficulty-based ball speed and expanded options
 
 # Import all the necessary libraries
-import pygame, sys, time, numpy
+import pygame, sys, time, numpy, random
 
 # Initialize pygame
 pygame.init()
@@ -18,8 +18,6 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
-YELLOW = (255, 255, 0)
-
 # Clock for frame rate
 clock = pygame.time.Clock()
 
@@ -48,6 +46,9 @@ game_duration = 300  # Changed default to 5 minutes (300 seconds)
 game_start_time = 0
 paused_time = 0
 is_paused = False
+
+# Track who serves next (player or opponent)
+serve_to = "player"  # Start by serving to player
 
 # Game objects
 ball = pygame.Rect(WIDTH//2 - 15, HEIGHT//2 - 15, 30, 30)
@@ -85,8 +86,15 @@ def ball_reset():
         base_ball_speed_y = 6
     
     ball.center = (WIDTH//2, HEIGHT//2)
-    ball_speed_x = base_ball_speed_x * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
-    ball_speed_y = base_ball_speed_y * (1 if pygame.time.get_ticks() % 2 == 0 else -1)
+    
+    # Determine serve direction based on who should serve
+    if serve_to == "player":  # Serve to player (from left)
+        ball_speed_x = abs(base_ball_speed_x)  # Moving right toward player
+    else:  # Serve to opponent (from right)
+        ball_speed_x = -abs(base_ball_speed_x)  # Moving left toward opponent
+    
+    # Random vertical angle
+    ball_speed_y = base_ball_speed_y * random.choice([-1, 1]) * random.uniform(0.7, 1.3)
 
 def play_sound(sound):
     sound.play()
@@ -208,6 +216,7 @@ while True:
                     game_start_time = time.time()
                     player_score = 0
                     opponent_score = 0
+                    serve_to = "player"  # Reset serve direction to initial (serve to player)
                     ball_reset()
                 elif game_state == "game_over":
                     game_state = "main_menu"
@@ -319,10 +328,12 @@ while True:
         if ball.left <= 0:
             player_score += 1  # Player 1 (right) scores
             play_sound(score_sound)
+            serve_to = "player"  # Next serve goes to player (from left)
             ball_reset()
         elif ball.right >= WIDTH:
             opponent_score += 1  # Player 2/Computer (left) scores
             play_sound(score_sound)
+            serve_to = "opponent"  # Next serve goes to opponent (from right)
             ball_reset()
 
         # Paddle collisions
